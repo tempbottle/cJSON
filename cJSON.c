@@ -33,29 +33,81 @@
 #include "cJSON.h"
 
 static const char *ep;
+static void *(*cJSON_malloc)(size_t sz) = malloc;
+static void (*cJSON_free)(void *ptr) = free;
 
 const char *cJSON_GetErrorPtr(void) {return ep;}
+
+static unsigned char cJSON_tolower(const unsigned char ch){
+	if ((unsigned int) (ch - 'A') < 26u) {
+		ch += 'a' - 'A';
+	}
+	return ch;
+}
+
+static void* cJSON_memcpy(unsigned char* dest, const unsigned char* src, int size){
+	while(size>0){
+		*(dest+size-1) = *(src+size-1);
+		size--;
+	}
+	return dest;
+}
+
+static void cJSON_memset(void* ptr, unsigned char v, int size){
+	unsigned char* p = (unsigned char* ptr;
+	int i = 0;
+	for(i=0; i<size; i++){
+		*(p+i) = v;
+	}
+}
+
+static int cJSON_strlen(const char* str){
+	int size = 0;
+	while(*str!='\0') {
+	  str++;
+	  size++;
+	}
+	return size;
+}
+
+static char* cJSON_strcpy(char* dest, const char* src){
+	char* p = dest;
+	while(*str!='\0') {
+	  *dest++==*str++;
+	}
+	return p;
+}
+
+static int cJSON_strncmp(const char* s1, const char* s2, int length){
+	int i = 0;
+	for(; i<length; i++){
+		if(*(s1+i)<*(s2+i)) return -1;
+		if(*(s1+i)>*(s2+i)) return 1;
+	}
+	return 0;
+}
 
 static int cJSON_strcasecmp(const char *s1,const char *s2)
 {
 	if (!s1) return (s1==s2)?0:1;if (!s2) return 1;
-	for(; tolower(*s1) == tolower(*s2); ++s1, ++s2)	if(*s1 == 0)	return 0;
-	return tolower(*(const unsigned char *)s1) - tolower(*(const unsigned char *)s2);
+	for(; cJSON_tolower(*s1) == cJSON_tolower(*s2); ++s1, ++s2)	if(*s1 == 0)	return 0;
+	return cJSON_tolower(*(const unsigned char *)s1) - cJSON_tolower(*(const unsigned char *)s2);
 }
-
-static void *(*cJSON_malloc)(size_t sz) = malloc;
-static void (*cJSON_free)(void *ptr) = free;
 
 static char* cJSON_strdup(const char* str)
 {
       size_t len;
       char* copy;
 
-      len = strlen(str) + 1;
+      len = cJSON_strlen(str) + 1;
       if (!(copy = (char*)cJSON_malloc(len))) return 0;
-      memcpy(copy,str,len);
+      cJSON_memcpy(copy,str,len);
       return copy;
 }
+
+#define cJSON_sprintf sprintf
+#define cJSON_fabs    fabs
+#define cJSON_floor   floor
 
 void cJSON_InitHooks(cJSON_Hooks* hooks)
 {
@@ -73,7 +125,7 @@ void cJSON_InitHooks(cJSON_Hooks* hooks)
 static cJSON *cJSON_New_Item(void)
 {
 	cJSON* node = (cJSON*)cJSON_malloc(sizeof(cJSON));
-	if (node) memset(node,0,sizeof(cJSON));
+	if (node) cJSON_memset(node,0,sizeof(cJSON));
 	return node;
 }
 
@@ -119,19 +171,19 @@ static char *print_number(cJSON *item)
 {
 	char *str;
 	double d=item->valuedouble;
-	if (fabs(((double)item->valueint)-d)<=DBL_EPSILON && d<=INT_MAX && d>=INT_MIN)
+	if (cJSON_fabs(((double)item->valueint)-d)<=DBL_EPSILON && d<=INT_MAX && d>=INT_MIN)
 	{
 		str=(char*)cJSON_malloc(21);	/* 2^64+1 can be represented in 21 chars. */
-		if (str) sprintf(str,"%d",item->valueint);
+		if (str) cJSON_sprintf(str,"%d",item->valueint);
 	}
 	else
 	{
 		str=(char*)cJSON_malloc(64);	/* This is a nice tradeoff. */
 		if (str)
 		{
-			if (fabs(floor(d)-d)<=DBL_EPSILON && fabs(d)<1.0e60)sprintf(str,"%.0f",d);
-			else if (fabs(d)<1.0e-6 || fabs(d)>1.0e9)			sprintf(str,"%e",d);
-			else												sprintf(str,"%f",d);
+			if (cJSON_fabs(cJSON_floor(d)-d)<=DBL_EPSILON && cJSON_fabs(d)<1.0e60)cJSON_sprintf(str,"%.0f",d);
+			else if (cJSON_fabs(d)<1.0e-6 || cJSON_fabs(d)>1.0e9)			cJSON_sprintf(str,"%e",d);
+			else												cJSON_sprintf(str,"%f",d);
 		}
 	}
 	return str;
@@ -239,7 +291,7 @@ static char *print_string_ptr(const char *str)
 				case '\n':	*ptr2++='n';	break;
 				case '\r':	*ptr2++='r';	break;
 				case '\t':	*ptr2++='t';	break;
-				default: sprintf(ptr2,"u%04x",token);ptr2+=5;	break;	/* escape and print */
+				default: cJSON_sprintf(ptr2,"u%04x",token);ptr2+=5;	break;	/* escape and print */
 			}
 		}
 	}
@@ -287,9 +339,9 @@ char *cJSON_PrintUnformatted(cJSON *item)	{return print_value(item,0,0);}
 static const char *parse_value(cJSON *item,const char *value)
 {
 	if (!value)						return 0;	/* Fail on null. */
-	if (!strncmp(value,"null",4))	{ item->type=cJSON_NULL;  return value+4; }
-	if (!strncmp(value,"false",5))	{ item->type=cJSON_False; return value+5; }
-	if (!strncmp(value,"true",4))	{ item->type=cJSON_True; item->valueint=1;	return value+4; }
+	if (!cJSON_strncmp(value,"null",4))	{ item->type=cJSON_NULL;  return value+4; }
+	if (!cJSON_strncmp(value,"false",5))	{ item->type=cJSON_False; return value+5; }
+	if (!cJSON_strncmp(value,"true",4))	{ item->type=cJSON_True; item->valueint=1;	return value+4; }
 	if (*value=='\"')				{ return parse_string(item,value); }
 	if (*value=='-' || (*value>='0' && *value<='9'))	{ return parse_number(item,value); }
 	if (*value=='[')				{ return parse_array(item,value); }
@@ -358,7 +410,7 @@ static char *print_array(cJSON *item,int depth,int fmt)
 	if (!numentries)
 	{
 		out=(char*)cJSON_malloc(3);
-		if (out) strcpy(out,"[]");
+		if (out) cJSON_strcpy(out,"[]");
 		return out;
 	}
 	/* Allocate an array to hold the values for each */
@@ -492,9 +544,9 @@ static char *print_object(cJSON *item,int depth,int fmt)
 	for (i=0;i<numentries;i++)
 	{
 		if (fmt) for (j=0;j<depth;j++) *ptr++='\t';
-		strcpy(ptr,names[i]);ptr+=strlen(names[i]);
+		cJSON_strcpy(ptr,names[i]);ptr+=cJSON_strlen(names[i]);
 		*ptr++=':';if (fmt) *ptr++='\t';
-		strcpy(ptr,entries[i]);ptr+=strlen(entries[i]);
+		cJSON_strcpy(ptr,entries[i]);ptr+=cJSON_strlen(entries[i]);
 		if (i!=numentries-1) *ptr++=',';
 		if (fmt) *ptr++='\n';*ptr=0;
 		cJSON_free(names[i]);cJSON_free(entries[i]);
