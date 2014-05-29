@@ -40,7 +40,7 @@ const char *cJSON_GetErrorPtr(void) {
 	return ep;
 }
 
-static unsigned char cJSON_tolower(const unsigned char ch) {
+static unsigned char cJSON_tolower(unsigned char ch) {
 	if ((unsigned int) (ch - 'A') < 26u) {
 		ch += 'a' - 'A';
 	}
