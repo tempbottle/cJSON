@@ -23,17 +23,14 @@
 /* cJSON */
 /* JSON parser in C. */
 
-#include <string.h>
 #include <stdio.h>
 #include <math.h>
-#include <stdlib.h>
 #include <float.h>
-#include <limits.h>
 #include <ctype.h>
 #include "cJSON.h"
 
 static const char *ep;
-static void *(*cJSON_malloc)(size_t sz) = malloc;
+static void *(*cJSON_malloc)(unsigned int sz) = malloc;
 static void (*cJSON_free)(void *ptr) = free;
 
 const char *cJSON_GetErrorPtr(void) {
@@ -105,7 +102,7 @@ static int cJSON_strcasecmp(const char *s1, const char *s2) {
 }
 
 static char* cJSON_strdup(const char* str) {
-	size_t len;
+	unsigned int len;
 	char* copy;
 
 	len = cJSON_strlen(str) + 1;
@@ -118,6 +115,7 @@ static char* cJSON_strdup(const char* str) {
 #define cJSON_sprintf sprintf
 #define cJSON_fabs    fabs
 #define cJSON_floor   floor
+#define cJSON_pow     pow
 
 void cJSON_InitHooks(cJSON_Hooks* hooks) {
 	if (!hooks) { /* Reset hooks */
@@ -184,7 +182,7 @@ static const char *parse_number(cJSON *item, const char *num) {
 			subscale = (subscale * 10) + (*num++ - '0'); /* Number? */
 	}
 
-	n = sign * n * pow(10.0, (scale + subscale * signsubscale)); /* number = +/- number.fraction * 10^+/- exponent */
+	n = sign * n * cJSON_pow(10.0, (scale + subscale * signsubscale)); /* number = +/- number.fraction * 10^+/- exponent */
 
 	item->valuedouble = n;
 	item->valueint = (int) n;
